@@ -18,12 +18,16 @@ import {
 } from '@veramo/data-store'
 import { DataSource } from 'typeorm'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // データベースファイルのパスを設定
 const DATABASE_FILE = path.join(__dirname, '../../database/database.sqlite')
 
 // 秘密鍵の暗号化に使用するシークレット
-const KMS_SECRET_KEY = process.env.KMS_SECRET_KEY || 'your-secret-key-min-32-chars-long!'
+const KMS_SECRET_KEY = process.env.KMS_SECRET_KEY || '0000000000000000000000000000000000000000000000000000000000000000'
 
 // SQLiteデータベースの設定
 const dbConnection = new DataSource({

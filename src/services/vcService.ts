@@ -1,8 +1,16 @@
-import { ICredentialIssuer } from '@veramo/core'
+import { TAgent, IResolver, ICredentialIssuer, IDIDManager, IKeyManager, IDataStore } from '@veramo/core'
 import { CreateVCParams } from '../types/credentials'
 
 export class VCService {
-  constructor(private agent: ICredentialIssuer) {}
+  constructor(
+    private agent: TAgent<
+      IResolver & 
+      ICredentialIssuer & 
+      IDIDManager & 
+      IKeyManager & 
+      IDataStore
+    >
+  ) {}
 
   async createVC(params: CreateVCParams) {
     try {
