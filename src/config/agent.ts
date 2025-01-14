@@ -2,7 +2,7 @@ import { createAgent, IResolver } from '@veramo/core'
 import { DIDManager } from '@veramo/did-manager'
 import { CredentialIssuer, ICredentialIssuer } from '@veramo/credential-w3c'
 import { KeyManager } from '@veramo/key-manager'
-import { KeyManagementSystem } from '@veramo/kms-local'
+import { KeyManagementSystem, SecretBox } from '@veramo/kms-local'
 import { DIDResolverPlugin } from '@veramo/did-resolver'
 import { Resolver } from 'did-resolver'
 import { getResolver as webDidResolver } from 'web-did-resolver'
@@ -22,6 +22,9 @@ import path from 'path'
 // データベースファイルのパスを設定
 const DATABASE_FILE = path.join(__dirname, '../../database/database.sqlite')
 
+// 秘密鍵の暗号化に使用するシークレット
+const KMS_SECRET_KEY = process.env.KMS_SECRET_KEY || 'your-secret-key-min-32-chars-long!'
+
 // SQLiteデータベースの設定
 const dbConnection = new DataSource({
   type: 'sqlite',
@@ -35,33 +38,41 @@ const dbConnection = new DataSource({
 
 // データベース接続の初期化
 export const initializeAgent = async () => {
-  await dbConnection.initialize()
-  
-  return createAgent<IResolver & ICredentialIssuer>({
-    plugins: [
-      new KeyManager({
-        store: new KeyStore(dbConnection),
-        kms: {
-          local: new KeyManagementSystem(new PrivateKeyStore(dbConnection, { })),
-        },
-      }),
-      new DIDManager({
-        store: new DIDStore(dbConnection),
-        defaultProvider: 'did:web',
-        providers: {
-          'did:web': new WebDIDProvider({
-            defaultKms: 'local',
-          }),
-        },
-      }),
-      new DIDResolverPlugin({
-        resolver: new Resolver({
-          ...webDidResolver()
+  try {
+    await dbConnection.initialize()
+    console.log('Database connection initialized')
+    
+    const secretBox = new SecretBox(KMS_SECRET_KEY)
+    
+    return createAgent<IResolver & ICredentialIssuer>({
+      plugins: [
+        new KeyManager({
+          store: new KeyStore(dbConnection),
+          kms: {
+            local: new KeyManagementSystem(new PrivateKeyStore(dbConnection, secretBox)),
+          },
         }),
-      }),
-      new CredentialIssuer(),
-      new DataStore(dbConnection),
-      new DataStoreORM(dbConnection),
-    ],
-  })
+        new DIDManager({
+          store: new DIDStore(dbConnection),
+          defaultProvider: 'did:web',
+          providers: {
+            'did:web': new WebDIDProvider({
+              defaultKms: 'local',
+            }),
+          },
+        }),
+        new DIDResolverPlugin({
+          resolver: new Resolver({
+            ...webDidResolver()
+          }),
+        }),
+        new CredentialIssuer(),
+        new DataStore(dbConnection),
+        new DataStoreORM(dbConnection),
+      ],
+    })
+  } catch (error) {
+    console.error('Failed to initialize database:', error)
+    throw error
+  }
 }
